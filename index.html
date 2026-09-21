@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python AR Code Game - String & List</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Kanit', sans-serif; }
+        .code-font { font-family: 'Fira Code', monospace; }
+        .drop-zone { transition: all 0.2s ease; user-select: none; }
+        /* เอฟเฟกต์เวลาเลือกช่องว่างให้โดดเด่นขึ้น */
+        .active-zone { 
+            box-shadow: 0 0 0 4px #3b82f6; 
+            background-color: #1e3a8a !important; 
+            color: #fff !important;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <!-- Anti-Cheat Overlay Modal -->
+    <div id="cheat-modal" class="fixed inset-0 bg-red-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border-2 border-red-500 rounded-2xl max-w-md w-full p-6 text-center shadow-2xl animate-bounce">
+            <div class="w-16 h-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-red-400 mb-2">⚠️ ตรวจพบการสลับหน้าจอ!</h3>
+            <p class="text-slate-300 mb-4 text-sm">
+                ระบบตรวจพบว่าคุณสลับแท็บ ออกจากโหมดเต็มหน้าจอ หรือเปลี่ยนไปยังโปรแกรมอื่น <br>
+                <span class="text-red-400 font-bold text-base">ถูกหักคะแนน 5 คะแนน</span> และถูกบันทึกประวัติไว้
+            </p>
+            <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 mb-6 text-left text-xs space-y-1">
+                <p class="text-slate-400">การละเมิดสะสม: <span id="cheat-count-modal" class="text-red-400 font-bold">1</span> ครั้ง</p>
+            </div>
+            <button onclick="resumeGame()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition shadow-lg">
+                รับทราบ และกลับสู่เกม
+            </button>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="flex-1 flex flex-col items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-lg w-full text-center shadow-2xl">
+            <div class="text-5xl mb-4 text-amber-400">🐍</div>
+            <h1 class="text-2xl font-bold text-amber-400 mb-1">Python AR Code Game</h1>
+            <p class="text-slate-400 text-sm mb-6">แบบทดสอบเติมโค้ด เรื่อง String และ List (4 ข้อ / 135 คะแนน)</p>
+            
+            <form id="start-form" onsubmit="startGame(event)" class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">ชื่อ-นามสกุล นักศึกษา <span class="text-red-400">*</span></label>
+                    <input type="text" id="student-name" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">รหัสนักศึกษา <span class="text-red-400">*</span></label>
+                    <input type="text" id="student-id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white">
+                </div>
+                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl transition mt-4">
+                    <i class="fa-solid fa-play"></i> เริ่มเล่นเกม (เต็มหน้าจอ)
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Game Screen -->
+    <div id="game-screen" class="hidden flex-1 flex flex-col max-w-5xl w-full mx-auto p-4">
+        <!-- Stats -->
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-4 flex justify-between items-center gap-4">
+            <div>
+                <p class="text-xs text-slate-400">ผู้ทดสอบ</p>
+                <p class="font-semibold text-amber-400 text-sm" id="display-student-info">-</p>
+            </div>
+            <div class="flex gap-6">
+                <div class="text-center">
+                    <p class="text-xs text-slate-400">ข้อที่</p>
+                    <p class="font-bold text-white"><span id="current-q">1</span>/4</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-slate-400">คะแนน</p>
+                    <p class="font-bold text-emerald-400"><span id="score">0</span></p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-slate-400">เวลา</p>
+                    <p class="font-mono font-bold text-blue-400" id="timer">00:00</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question -->
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 mb-4 flex-1">
+            <h2 class="text-xl font-bold text-white mb-2" id="q-title">โจทย์คำถาม...</h2>
+            <p class="text-xs text-emerald-400 mb-4 bg-emerald-500/10 inline-block px-3 py-1 rounded-full border border-emerald-500/30">
+                <i class="fa-solid fa-circle-info"></i> แตะที่ช่องว่าง [?] ในโค้ด ให้ขึ้นกรอบสีน้ำเงินกะพริบ แล้วแตะเลือกคำตอบจากด้านล่าง (เติมถูกรับช่องละ 5 คะแนน)
+            </p>
+            
+            <div class="bg-slate-950 border border-slate-800 p-5 rounded-xl code-font text-base text-slate-200 mb-6 leading-loose overflow-x-auto" id="q-code-container"></div>
+            
+            <div>
+                <p class="text-sm text-slate-400 mb-3 font-semibold border-b border-slate-700 pb-2">บล็อกตัวเลือกคำตอบ:</p>
+                <div class="flex flex-wrap gap-3" id="blocks-container"></div>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="flex justify-between items-center">
+            <button onclick="clearAnswers()" class="text-slate-400 hover:text-amber-400 text-sm underline transition">
+                <i class="fa-solid fa-rotate-left"></i> ล้างคำตอบข้อนี้
+            </button>
+            <button onclick="submitAnswer()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-3 rounded-xl transition shadow-lg text-lg">
+                ส่งคำตอบ
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Screen -->
+    <div id="summary-screen" class="hidden flex-1 flex flex-col items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-lg w-full text-center shadow-2xl">
+            <div class="text-5xl mb-3 text-emerald-400">🎉</div>
+            <h1 class="text-2xl font-bold text-white mb-1">ทำภารกิจสำเร็จ</h1>
+            <p class="text-slate-400 text-sm mb-6" id="save-status-text">⏳ กำลังบันทึกคะแนนเข้าสู่ระบบ...</p>
+
+            <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-left space-y-3 mb-6 text-sm">
+                <div class="flex justify-between border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">ชื่อ:</span><span class="font-semibold text-white" id="sum-name">-</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">คะแนนเต็ม 135:</span><span class="font-bold text-emerald-400 text-base" id="sum-score">0 / 135</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">เวลา:</span><span class="font-mono text-blue-400" id="sum-time">00:00</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">การสลับหน้าจอ (โกง):</span><span class="font-semibold text-red-400" id="sum-cheat">0 ครั้ง</span>
+                </div>
+            </div>
+
+            <button onclick="restartGame()" id="restart-btn" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition disabled:opacity-50" disabled>
+                กำลังโหลด...
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ---------------------------------------------------------
+        // 🔴🔴🔴 นำ URL ของ Google Apps Script มาวางในเครื่องหมายคำพูดด้านล่าง 🔴🔴🔴
+        // ---------------------------------------------------------
+        const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzZewBNcKqlWbKZlQY8eDwIHih2aWudbcMVEDU_MhLO3jzF-sLcVOD3aTalsR8EwEf72Q/exec";
+
+        // ข้อมูลโจทย์อ้างอิงจากไฟล์ "โจทย์ string list.txt"
+        const questions = [
+            { 
+                title: "ข้อ 1: การจัดการข้อมูล String", 
+                code: "name = input('ป้อนชื่อของคุณ: ')\nprint('ชื่อที่ผู้ใช้ป้อน:', ___)\nprint('จำนวนตัวอักษรของชื่อ:', ___(name))\nprint('ชื่อเป็นตัวพิมพ์ใหญ่:', name.___())\nprint('ชื่อเป็นตัวพิมพ์เล็ก:', name.___())\nprint('ตัวอักษรตัวแรก:', name[___])\nprint('ตัวอักษรตัวสุดท้าย:', name[___])", 
+                answers: ["name", "len", "upper", "lower", "0", "-1"], 
+                options: ["name", "len", "upper", "lower", "0", "-1", "count", "size", "1", "first"] 
+            },
+            { 
+                title: "ข้อ 2: การสร้างและเข้าถึงข้อมูลใน List", 
+                code: "fruits = ['apple', 'banana', 'orange', 'mango', 'grape']\nprint('รายการผลไม้ทั้งหมด:', ___)\nprint('จำนวนผลไม้:', ___(fruits))\nprint('ผลไม้รายการแรก:', fruits[___])\nprint('ผลไม้รายการสุดท้าย:', fruits[___])\nprint('ผลไม้ตั้งแต่รายการที่ 2 ถึงรายการที่ 4:', fruits[___:___])", 
+                answers: ["fruits", "len", "0", "-1", "1", "4"], 
+                options: ["fruits", "len", "0", "-1", "1", "4", "2", "3", "list", "count"] 
+            },
+            { 
+                title: "ข้อ 3: การเพิ่ม แก้ไข และลบข้อมูลใน List", 
+                code: "scores = [70, 80, 60]\n# เพิ่มคะแนน 90 ต่อท้าย\nscores.___(90)\n# แก้คะแนน 60 เป็น 75\nscores[___] = 75\n# ลบคะแนน 70\nscores.___(70)\n# เรียงคะแนนจากน้อยไปมาก\nscores.___()\nprint('คะแนนทั้งหมด:', scores)\nprint('จำนวนข้อมูล:', ___(scores))", 
+                answers: ["append", "2", "remove", "sort", "len"], 
+                options: ["append", "2", "remove", "sort", "len", "insert", "pop", "1", "add", "order"] 
+            },
+            { 
+                title: "ข้อ 4: การจัดการ List ขั้นสูง", 
+                code: "scores = [75, 82, 90, 68, 82]\nscores.___(88)\nscores.___(1, 70)\n# แก้คะแนน 68 เป็น 78\nscores[___] = 78\nscores.___(82)\n# เรียงจากมากไปน้อย\nscores.sort(reverse=___)\nprint('จำนวนข้อมูล:', ___(scores))\nprint('คะแนนสูงสุด:', ___(scores))\nprint('คะแนนต่ำสุด:', ___(scores))\nprint('ผลรวม:', ___(scores))\nprint('จำนวนครั้งที่คะแนน 82 ปรากฏ:', scores.___(82))", 
+                answers: ["append", "insert", "4", "remove", "True", "len", "max", "min", "sum", "count"], 
+                options: ["append", "insert", "4", "remove", "True", "len", "max", "min", "sum", "count", "pop", "add", "False", "3"] 
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let totalScore = 0;
+        let cheatCount = 0;
+        let timerInterval;
+        let secondsElapsed = 0;
+        let studentName = "", studentId = "";
+        let activeZone = null;
+
+        function startGame(e) {
+            e.preventDefault();
+            studentName = document.getElementById('student-name').value;
+            studentId = document.getElementById('student-id').value;
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('display-student-info').innerText = `${studentName} (${studentId})`;
+            requestFullScreen();
+            startTimer();
+            loadQuestion();
+            setupAntiCheat();
+        }
+
+        function requestFullScreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) elem.requestFullscreen();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+                const secs = String(secondsElapsed % 60).padStart(2, '0');
+                document.getElementById('timer').innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function loadQuestion() {
+            const q = questions[currentQuestionIndex];
+            activeZone = null;
+            document.getElementById('current-q').innerText = currentQuestionIndex + 1;
+            document.getElementById('q-title').innerText = q.title;
+
+            // แทนที่ ___ ด้วยปุ่ม Drop zone หลายอัน
+            let codeHtml = q.code;
+            let count = 0;
+            codeHtml = codeHtml.replace(/___/g, function() {
+                count++;
+                return `<span class="drop-zone inline-block px-4 py-1 bg-slate-800 border-2 border-dashed border-amber-400 text-amber-300 rounded-lg font-bold mx-1 cursor-pointer hover:bg-slate-700" onclick="activateZone(this)">?</span>`;
+            });
+            document.getElementById('q-code-container').innerHTML = `<pre>${codeHtml}</pre>`;
+
+            // จัดเรียง Options แบบสุ่มเล็กน้อย
+            const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+            const blocksContainer = document.getElementById('blocks-container');
+            blocksContainer.innerHTML = "";
+            shuffledOptions.forEach(opt => {
+                const btn = document.createElement('div');
+                btn.className = "bg-slate-700 border-2 border-slate-600 hover:border-amber-400 text-amber-300 font-mono px-5 py-2.5 rounded-lg cursor-pointer text-sm shadow transition active:scale-95";
+                btn.innerText = opt;
+                btn.onclick = () => selectBlock(opt);
+                blocksContainer.appendChild(btn);
+            });
+
+            // เปิดใช้งานช่องแรกอัตโนมัติ
+            const firstZone = document.querySelector('.drop-zone');
+            if(firstZone) activateZone(firstZone);
+        }
+
+        function activateZone(element) {
+            // ล้างคลาส active ออกจากช่องอื่นทั้งหมด
+            document.querySelectorAll('.drop-zone').forEach(el => el.classList.remove('active-zone'));
+            // ใส่คลาส active ให้ช่องที่ถูกคลิก
+            element.classList.add('active-zone');
+            activeZone = element;
+        }
+
+        function selectBlock(val) {
+            if (!activeZone) {
+                alert("กรุณาคลิกเลือกช่องว่าง [?] ด้านบนที่ต้องการเติมก่อนครับ");
+                return;
+            }
+            
+            // ใส่ค่าลงในช่องว่าง
+            activeZone.innerText = val;
+            activeZone.classList.replace('border-dashed', 'border-solid');
+            activeZone.classList.replace('bg-slate-800', 'bg-amber-500');
+            activeZone.classList.replace('text-amber-300', 'text-slate-950');
+            
+            // ยกเลิกสถานะ active ปัจจุบัน
+            activeZone.classList.remove('active-zone');
+
+            // หาช่องว่างถัดไปที่ยังเป็น '?' และตั้งให้เป็น active อัตโนมัติ
+            const zones = Array.from(document.querySelectorAll('.drop-zone'));
+            const nextEmpty = zones.find(z => z.innerText === '?');
+            if (nextEmpty) {
+                activateZone(nextEmpty);
+            } else {
+                activeZone = null; // เติมครบแล้ว
+            }
+        }
+
+        function clearAnswers() {
+            if(confirm('ต้องการล้างคำตอบของข้อนี้ทั้งหมดหรือไม่?')) {
+                loadQuestion();
+            }
+        }
+
+        function submitAnswer() {
+            const zones = document.querySelectorAll('.drop-zone');
+            const isComplete = Array.from(zones).every(z => z.innerText !== '?');
+            
+            if (!isComplete) {
+                alert("กรุณาเติมคำตอบให้ครบทุกช่องก่อนส่งคำตอบครับ");
+                return;
+            }
+
+            const q = questions[currentQuestionIndex];
+            let correctCount = 0;
+            
+            // ตรวจสอบทีละช่องว่าตรงกับ answers ที่เฉลยไว้หรือไม่
+            zones.forEach((zone, index) => {
+                if (zone.innerText === q.answers[index]) {
+                    totalScore += 5; // เติมถูกรับ 5 คะแนนต่อช่อง
+                    correctCount++;
+                }
+            });
+
+            document.getElementById('score').innerText = totalScore;
+            currentQuestionIndex++;
+            
+            if (currentQuestionIndex < questions.length) {
+                loadQuestion();
+            } else {
+                finishGame();
+            }
+        }
+
+        function setupAntiCheat() {
+            document.addEventListener("visibilitychange", () => { if (document.hidden) triggerCheatPenalty(); });
+            window.addEventListener("blur", triggerCheatPenalty);
+        }
+
+        function triggerCheatPenalty() {
+            if (document.getElementById('game-screen').classList.contains('hidden')) return;
+            cheatCount++;
+            totalScore = Math.max(0, totalScore - 5);
+            document.getElementById('score').innerText = totalScore;
+            document.getElementById('cheat-count-modal').innerText = cheatCount;
+            document.getElementById('cheat-modal').classList.remove('hidden');
+        }
+
+        function resumeGame() {
+            document.getElementById('cheat-modal').classList.add('hidden');
+            requestFullScreen();
+        }
+
+        function finishGame() {
+            clearInterval(timerInterval);
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('summary-screen').classList.remove('hidden');
+
+            document.getElementById('sum-name').innerText = studentName;
+            document.getElementById('sum-score').innerText = `${totalScore} / 135`;
+            document.getElementById('sum-time').innerText = document.getElementById('timer').innerText;
+            document.getElementById('sum-cheat').innerText = `${cheatCount} ครั้ง`;
+
+            saveScoreToDatabase();
+        }
+
+        function saveScoreToDatabase() {
+            if(GOOGLE_APP_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbzZewBNcKqlWbK") {
+                document.getElementById('save-status-text').innerHTML = "⚠️ <span class='text-amber-400'>ยังไม่ได้เชื่อมต่อฐานข้อมูล Google Sheets (ลืมใส่ URL)</span>";
+                document.getElementById('restart-btn').innerText = "ทำแบบทดสอบอีกครั้ง";
+                document.getElementById('restart-btn').disabled = false;
+                return;
+            }
+
+            const formData = new URLSearchParams();
+            formData.append("name", studentName);
+            formData.append("studentId", studentId);
+            formData.append("score", totalScore);
+            formData.append("time", document.getElementById('timer').innerText);
+            formData.append("streak", "-"); // ไม่ได้ใช้ streak ในโหมดนี้
+            formData.append("cheat", cheatCount);
+
+            fetch(GOOGLE_APP_SCRIPT_URL, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.text())
+            .then(data => {
+                document.getElementById('save-status-text').innerHTML = "✅ <span class='text-emerald-400 font-bold'>บันทึกคะแนนเข้าระบบอาจารย์เรียบร้อยแล้ว!</span>";
+                const btn = document.getElementById('restart-btn');
+                btn.innerText = "ทำแบบทดสอบอีกครั้ง";
+                btn.disabled = false;
+            })
+            .catch(err => {
+                document.getElementById('save-status-text').innerHTML = "❌ <span class='text-red-400'>เครือข่ายขัดข้อง บันทึกคะแนนไม่สำเร็จ</span>";
+                const btn = document.getElementById('restart-btn');
+                btn.innerText = "ทำแบบทดสอบอีกครั้ง";
+                btn.disabled = false;
+            });
+        }
+
+        function restartGame() { location.reload(); }
+    </script>
+</body>
+</html>
